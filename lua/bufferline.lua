@@ -1,5 +1,8 @@
-local constants = require("bufferline.constants")
-local utils = require("bufferline.utils")
+local lazy = require('bufferline.lazy')
+---@module 'bufferline.constants'
+local constants = lazy.require("bufferline.constants")
+---@module 'bufferline.utils'
+local utils = lazy.require("bufferline.utils")
 
 local api = vim.api
 local fn = vim.fn
