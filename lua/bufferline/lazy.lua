@@ -6,7 +6,7 @@ local lazy = {}
 --- Only works for modules that export a table.
 ---@param require_path string
 ---@return table
-lazy.require_on_index = function(require_path)
+lazy.require = function(require_path)
   return setmetatable({}, {
     __index = function(_, key)
       return require(require_path)[key]
