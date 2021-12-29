@@ -156,6 +156,10 @@ function Buffer:visible()
   return fn.bufwinnr(self.id) > 0
 end
 
+function Buffer:mod()
+  return fn.getbufvar(self.id, '&mod') == 1
+end
+
 --- @param depth number
 --- @param formatter function(string, number)
 --- @returns string

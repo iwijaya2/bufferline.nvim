@@ -282,6 +282,8 @@ local function derive_colors()
   local error_diagnostic_fg = shade(error_fg, diagnostic_shading)
 
   return {
+
+    -- General
     fill = {
       guifg = comment_fg,
       guibg = separator_background_color,
@@ -306,33 +308,62 @@ local function derive_colors()
       guifg = comment_fg,
       guibg = background_color,
     },
-    close_button = {
-      guifg = comment_fg,
+    modified = {
+      guifg = string_fg,
       guibg = background_color,
     },
-    close_button_visible = {
-      guifg = comment_fg,
+    modified_visible = {
+      guifg = string_fg,
       guibg = visible_bg,
     },
-    close_button_selected = {
-      guifg = normal_fg,
+    modified_selected = {
+      guifg = string_fg,
       guibg = normal_bg,
     },
-    background = {
-      guifg = comment_fg,
-      guibg = background_color,
+    duplicate_selected = {
+      guifg = duplicate_color,
+      gui = "italic",
+      guibg = normal_bg,
     },
-    buffer = {
-      guifg = comment_fg,
-      guibg = background_color,
-    },
-    buffer_visible = {
-      guifg = comment_fg,
+    duplicate_visible = {
+      guifg = duplicate_color,
+      gui = "italic",
       guibg = visible_bg,
     },
-    buffer_selected = {
-      guifg = normal_fg,
+    duplicate = {
+      guifg = duplicate_color,
+      gui = "italic",
+      guibg = background_color,
+    },
+    separator_selected = {
+      guifg = separator_background_color,
       guibg = normal_bg,
+    },
+    separator_visible = {
+      guifg = separator_background_color,
+      guibg = visible_bg,
+    },
+    separator = {
+      guifg = separator_background_color,
+      guibg = background_color,
+    },
+    indicator_selected = {
+      guifg = tabline_sel_bg,
+      guibg = normal_bg,
+    },
+    pick_selected = {
+      guifg = error_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+    },
+    pick_visible = {
+      guifg = error_fg,
+      guibg = visible_bg,
+      gui = "bold,italic",
+    },
+    pick = {
+      guifg = error_fg,
+      guibg = background_color,
       gui = "bold,italic",
     },
     diagnostic = {
@@ -468,64 +499,69 @@ local function derive_colors()
       gui = "bold,italic",
       guisp = error_diagnostic_fg,
     },
-    modified = {
-      guifg = string_fg,
+
+    -- Unmodified buffer
+    close_button = {
+      guifg = comment_fg,
       guibg = background_color,
     },
-    modified_visible = {
-      guifg = string_fg,
+    close_button_visible = {
+      guifg = comment_fg,
       guibg = visible_bg,
     },
-    modified_selected = {
-      guifg = string_fg,
+    close_button_selected = {
+      guifg = normal_fg,
       guibg = normal_bg,
     },
-    duplicate_selected = {
-      guifg = duplicate_color,
-      gui = "italic",
-      guibg = normal_bg,
-    },
-    duplicate_visible = {
-      guifg = duplicate_color,
-      gui = "italic",
-      guibg = visible_bg,
-    },
-    duplicate = {
-      guifg = duplicate_color,
-      gui = "italic",
+    background = {
+      guifg = comment_fg,
       guibg = background_color,
     },
-    separator_selected = {
-      guifg = separator_background_color,
-      guibg = normal_bg,
-    },
-    separator_visible = {
-      guifg = separator_background_color,
-      guibg = visible_bg,
-    },
-    separator = {
-      guifg = separator_background_color,
+    buffer = {
+      guifg = comment_fg,
       guibg = background_color,
     },
-    indicator_selected = {
-      guifg = tabline_sel_bg,
-      guibg = normal_bg,
+    buffer_visible = {
+      guifg = comment_fg,
+      guibg = visible_bg,
     },
-    pick_selected = {
-      guifg = error_fg,
+    buffer_selected = {
+      guifg = normal_fg,
       guibg = normal_bg,
       gui = "bold,italic",
     },
-    pick_visible = {
-      guifg = error_fg,
-      guibg = visible_bg,
-      gui = "bold,italic",
-    },
-    pick = {
-      guifg = error_fg,
+
+    -- Modified buffer
+    close_button_mod = {
+      guifg = comment_fg,
       guibg = background_color,
+    },
+    close_button_visible_mod = {
+      guifg = comment_fg,
+      guibg = visible_bg,
+    },
+    close_button_selected_mod = {
+      guifg = normal_fg,
+      guibg = normal_bg,
+    },
+    background_mod = {
+      guifg = comment_fg,
+      guibg = background_color,
+    },
+    buffer_mod = {
+      guifg = comment_fg,
+      guibg = background_color,
+    },
+    buffer_visible_mod = {
+      guifg = comment_fg,
+      guibg = visible_bg,
+    },
+    buffer_selected_mod = {
+      guifg = normal_fg,
+      guibg = normal_bg,
       gui = "bold,italic",
     },
+
   }
 end
 

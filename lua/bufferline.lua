@@ -373,14 +373,20 @@ end
 local function get_buffer_highlight(buffer, config)
   local hl = {}
   local h = config.highlights
-
   if buffer:current() then
-    hl.background = h.buffer_selected.hl
+    if buffer:mod() then
+      hl.background = h.buffer_selected_mod.hl
+      hl.buffer = h.buffer_selected_mod
+      hl.close_button = h.close_button_selected_mod.hl
+    else
+      hl.background = h.buffer_selected.hl
+      hl.buffer = h.buffer_selected
+      hl.close_button = h.close_button_selected.hl
+    end
     hl.modified = h.modified_selected.hl
     hl.duplicate = h.duplicate_selected.hl
     hl.pick = h.pick_selected.hl
     hl.separator = h.separator_selected.hl
-    hl.buffer = h.buffer_selected
     hl.diagnostic = h.diagnostic_selected.hl
     hl.error = h.error_selected.hl
     hl.error_diagnostic = h.error_diagnostic_selected.hl
@@ -390,14 +396,20 @@ local function get_buffer_highlight(buffer, config)
     hl.info_diagnostic = h.info_diagnostic_selected.hl
     hl.hint = h.hint_selected.hl
     hl.hint_diagnostic = h.hint_diagnostic_selected.hl
-    hl.close_button = h.close_button_selected.hl
   elseif buffer:visible() then
-    hl.background = h.buffer_visible.hl
+    if buffer:mod() then
+      hl.background = h.buffer_visible_mod.hl
+      hl.buffer = h.buffer_visible_mod
+      hl.close_button = h.close_button_visible_mod.hl
+    else
+      hl.background = h.buffer_visible.hl
+      hl.buffer = h.buffer_visible
+      hl.close_button = h.close_button_visible.hl
+    end
     hl.modified = h.modified_visible.hl
     hl.duplicate = h.duplicate_visible.hl
     hl.pick = h.pick_visible.hl
     hl.separator = h.separator_visible.hl
-    hl.buffer = h.buffer_visible
     hl.diagnostic = h.diagnostic_visible.hl
     hl.error = h.error_visible.hl
     hl.error_diagnostic = h.error_diagnostic_visible.hl
@@ -407,14 +419,20 @@ local function get_buffer_highlight(buffer, config)
     hl.info_diagnostic = h.info_diagnostic_visible.hl
     hl.hint = h.hint_visible.hl
     hl.hint_diagnostic = h.hint_diagnostic_visible.hl
-    hl.close_button = h.close_button_visible.hl
   else
-    hl.background = h.background.hl
+    if buffer:mod() then
+      hl.background = h.background_mod.hl
+      hl.buffer = h.background_mod
+      hl.close_button = h.close_button_mod.hl
+    else
+      hl.background = h.background.hl
+      hl.buffer = h.background
+      hl.close_button = h.close_button.hl
+    end
     hl.modified = h.modified.hl
     hl.duplicate = h.duplicate.hl
     hl.pick = h.pick.hl
     hl.separator = h.separator.hl
-    hl.buffer = h.background
     hl.diagnostic = h.diagnostic.hl
     hl.error = h.error.hl
     hl.error_diagnostic = h.error_diagnostic.hl
@@ -424,7 +442,6 @@ local function get_buffer_highlight(buffer, config)
     hl.info_diagnostic = h.info_diagnostic.hl
     hl.hint = h.hint.hl
     hl.hint_diagnostic = h.hint_diagnostic.hl
-    hl.close_button = h.close_button.hl
   end
 
   if buffer.group then
