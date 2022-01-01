@@ -562,6 +562,151 @@ local function derive_colors()
       gui = "bold,italic",
     },
 
+    -- hint_diagnostic_selected_mod = {
+    --   guifg = hint_diagnostic_fg,
+    --   guibg = normal_bg,
+    --   gui = "bold,italic",
+    --   guisp = hint_diagnostic_fg,
+    -- },
+    -- info_diagnostic_selected_mod = {
+    --   guifg = info_diagnostic_fg,
+    --   guibg = normal_bg,
+    --   gui = "bold,italic",
+    --   guisp = info_diagnostic_fg,
+    -- },
+    -- warning_diagnostic_selected_mod = {
+    --   guifg = warning_diagnostic_fg,
+    --   guibg = normal_bg,
+    --   gui = "bold,italic",
+    --   guisp = warning_diagnostic_fg,
+    -- },
+
+    error_diagnostic_selected_mod = {
+      guifg = error_diagnostic_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = error_diagnostic_fg,
+    },
+
+    -- hint_selected_mod = {
+    --   guifg = hint_diagnostic_fg,
+    --   guibg = normal_bg,
+    --   gui = "bold,italic",
+    --   guisp = hint_diagnostic_fg,
+    -- },
+    -- info_selected_mod = {
+    --   guifg = info_diagnostic_fg,
+    --   guibg = normal_bg,
+    --   gui = "bold,italic",
+    --   guisp = info_diagnostic_fg,
+    -- },
+    -- warning_selected_mod = {
+    --   guifg = warning_diagnostic_fg,
+    --   guibg = normal_bg,
+    --   gui = "bold,italic",
+    --   guisp = warning_diagnostic_fg,
+    -- },
+
+    error_selected_mod = {
+      guifg = error_diagnostic_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = error_diagnostic_fg,
+    },
+
+
+    hint_mod = {
+      guifg = comment_fg,
+      guisp = hint_fg,
+      guibg = background_color,
+    },
+    hint_visible_mod = {
+      guifg = comment_fg,
+      guibg = visible_bg,
+    },
+    hint_selected_mod = {
+      guifg = hint_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = hint_fg,
+    },
+    hint_diagnostic_mod = {
+      guifg = comment_diagnostic_fg,
+      guisp = hint_diagnostic_fg,
+      guibg = background_color,
+    },
+    hint_diagnostic_visible_mod = {
+      guifg = comment_diagnostic_fg,
+      guibg = visible_bg,
+    },
+    hint_diagnostic_selected_mod = {
+      guifg = hint_diagnostic_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = hint_diagnostic_fg,
+    },
+    info_mod = {
+      guifg = comment_fg,
+      guisp = info_fg,
+      guibg = background_color,
+    },
+    info_visible_mod = {
+      guifg = comment_fg,
+      guibg = visible_bg,
+    },
+    info_selected_mod = {
+      guifg = info_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = info_fg,
+    },
+    info_diagnostic_mod = {
+      guifg = comment_diagnostic_fg,
+      guisp = info_diagnostic_fg,
+      guibg = background_color,
+    },
+    info_diagnostic_visible_mod = {
+      guifg = comment_diagnostic_fg,
+      guibg = visible_bg,
+    },
+    info_diagnostic_selected_mod = {
+      guifg = info_diagnostic_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = info_diagnostic_fg,
+    },
+    warning_mod = {
+      guifg = comment_fg,
+      guisp = warning_fg,
+      guibg = background_color,
+    },
+    warning_visible_mod = {
+      guifg = comment_fg,
+      guibg = visible_bg,
+    },
+    warning_selected_mod = {
+      guifg = warning_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = warning_fg,
+    },
+    warning_diagnostic_mod = {
+      guifg = comment_diagnostic_fg,
+      guisp = warning_diagnostic_fg,
+      guibg = background_color,
+    },
+    warning_diagnostic_visible_mod = {
+      guifg = comment_diagnostic_fg,
+      guibg = visible_bg,
+    },
+    warning_diagnostic_selected_mod = {
+      guifg = warning_diagnostic_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+      guisp = warning_diagnostic_fg,
+    },
+
+
   }
 end
 

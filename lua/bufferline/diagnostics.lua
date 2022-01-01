@@ -159,16 +159,17 @@ function M.component(context)
     return context
   end
 
-  local indicator = " (" .. diagnostics.count .. ")"
+  local indicator = ""
+  -- local indicator = " (" .. diagnostics.count .. ")"
   if user_indicator and type(user_indicator) == "function" then
     local ctx = { buffer = buf }
     indicator = user_indicator(diagnostics.count, diagnostics.level, diagnostics.errors, ctx)
   end
 
   --- Don't adjust the diagnostic indicator size if it is empty
-  if not indicator or #indicator == 0 then
-    return context
-  end
+  -- if not indicator or #indicator == 0 then
+  --   return context
+  -- end
 
   local highlight = highlights[diagnostics.level] or ""
   local diag_highlight = highlights[diagnostics.level .. "_diagnostic"]
