@@ -100,65 +100,98 @@ function M.for_element(element)
   local h = config.get("highlights")
   --- TODO: find a tidier way to do this if possible
   if element:current() then
-    hl.background = h.buffer_selected.hl
+    if element:mod() then
+      hl.background = h.buffer_selected_mod.hl
+      hl.buffer = h.buffer_selected_mod
+      hl.close_button = h.close_button_selected_mod.hl
+      hl.error = h.error_selected_mod.hl
+      hl.error_diagnostic = h.error_diagnostic_selected_mod.hl
+      hl.warning = h.warning_selected_mod.hl
+      hl.warning_diagnostic = h.warning_diagnostic_selected_mod.hl
+      hl.info = h.info_selected_mod.hl
+      hl.info_diagnostic = h.info_diagnostic_selected_mod.hl
+      hl.hint = h.hint_selected_mod.hl
+      hl.hint_diagnostic = h.hint_diagnostic_selected_mod.hl
+    else
+      hl.background = h.buffer_selected.hl
+      hl.buffer = h.buffer_selected
+      hl.close_button = h.close_button_selected.hl
+      hl.error = h.error_selected.hl
+      hl.error_diagnostic = h.error_diagnostic_selected.hl
+      hl.warning = h.warning_selected.hl
+      hl.warning_diagnostic = h.warning_diagnostic_selected.hl
+      hl.info = h.info_selected.hl
+      hl.info_diagnostic = h.info_diagnostic_selected.hl
+      hl.hint = h.hint_selected.hl
+      hl.hint_diagnostic = h.hint_diagnostic_selected.hl
+    end
     hl.modified = h.modified_selected.hl
     hl.duplicate = h.duplicate_selected.hl
     hl.pick = h.pick_selected.hl
     hl.separator = h.separator_selected.hl
-    hl.buffer = h.buffer_selected
     hl.diagnostic = h.diagnostic_selected.hl
-    hl.error = h.error_selected.hl
-    hl.error_diagnostic = h.error_diagnostic_selected.hl
-    hl.warning = h.warning_selected.hl
-    hl.warning_diagnostic = h.warning_diagnostic_selected.hl
-    hl.info = h.info_selected.hl
-    hl.info_diagnostic = h.info_diagnostic_selected.hl
-    hl.hint = h.hint_selected.hl
-    hl.hint_diagnostic = h.hint_diagnostic_selected.hl
-    hl.close_button = h.close_button_selected.hl
-    hl.numbers = h.numbers_selected.hl
   elseif element:visible() then
-    hl.background = h.buffer_visible.hl
+    if element:mod() then
+      hl.background = h.buffer_visible_mod.hl
+      hl.buffer = h.buffer_visible_mod
+      hl.close_button = h.close_button_visible_mod.hl
+      hl.warning = h.warning_visible_mod.hl
+      hl.warning_diagnostic = h.warning_diagnostic_visible_mod.hl
+      hl.info = h.info_visible_mod.hl
+      hl.info_diagnostic = h.info_diagnostic_visible_mod.hl
+      hl.hint = h.hint_visible_mod.hl
+      hl.hint_diagnostic = h.hint_diagnostic_visible_mod.hl
+    else
+      hl.background = h.buffer_visible.hl
+      hl.buffer = h.buffer_visible
+      hl.close_button = h.close_button_visible.hl
+      hl.warning = h.warning_visible.hl
+      hl.warning_diagnostic = h.warning_diagnostic_visible.hl
+      hl.info = h.info_visible.hl
+      hl.info_diagnostic = h.info_diagnostic_visible.hl
+      hl.hint = h.hint_visible.hl
+      hl.hint_diagnostic = h.hint_diagnostic_visible.hl
+    end
     hl.modified = h.modified_visible.hl
     hl.duplicate = h.duplicate_visible.hl
     hl.pick = h.pick_visible.hl
     hl.separator = h.separator_visible.hl
-    hl.buffer = h.buffer_visible
     hl.diagnostic = h.diagnostic_visible.hl
     hl.error = h.error_visible.hl
     hl.error_diagnostic = h.error_diagnostic_visible.hl
-    hl.warning = h.warning_visible.hl
-    hl.warning_diagnostic = h.warning_diagnostic_visible.hl
-    hl.info = h.info_visible.hl
-    hl.info_diagnostic = h.info_diagnostic_visible.hl
-    hl.hint = h.hint_visible.hl
-    hl.hint_diagnostic = h.hint_diagnostic_visible.hl
-    hl.close_button = h.close_button_visible.hl
-    hl.numbers = h.numbers_visible.hl
   else
-    hl.background = h.background.hl
+    if element:mod() then
+      hl.background = h.background_mod.hl
+      hl.buffer = h.background_mod
+      hl.close_button = h.close_button_mod.hl
+      hl.warning = h.warning_mod.hl
+      hl.warning_diagnostic = h.warning_diagnostic_mod.hl
+      hl.info = h.info_mod.hl
+      hl.info_diagnostic = h.info_diagnostic_mod.hl
+      hl.hint = h.hint_mod.hl
+      hl.hint_diagnostic = h.hint_diagnostic_mod.hl
+    else
+      hl.background = h.background.hl
+      hl.buffer = h.background
+      hl.close_button = h.close_button.hl
+      hl.warning = h.warning.hl
+      hl.warning_diagnostic = h.warning_diagnostic.hl
+      hl.info = h.info.hl
+      hl.info_diagnostic = h.info_diagnostic.hl
+      hl.hint = h.hint.hl
+      hl.hint_diagnostic = h.hint_diagnostic.hl
+    end
     hl.modified = h.modified.hl
     hl.duplicate = h.duplicate.hl
     hl.pick = h.pick.hl
     hl.separator = h.separator.hl
-    hl.buffer = h.background
     hl.diagnostic = h.diagnostic.hl
     hl.error = h.error.hl
     hl.error_diagnostic = h.error_diagnostic.hl
-    hl.warning = h.warning.hl
-    hl.warning_diagnostic = h.warning_diagnostic.hl
-    hl.info = h.info.hl
-    hl.info_diagnostic = h.info_diagnostic.hl
-    hl.hint = h.hint.hl
-    hl.hint_diagnostic = h.hint_diagnostic.hl
-    hl.close_button = h.close_button.hl
-    hl.numbers = h.numbers.hl
   end
-
   if element.group then
     groups.set_current_hl(element, h, hl)
   end
-
   return hl
 end
 

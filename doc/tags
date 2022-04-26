@@ -1,5 +1,6 @@
 NOTE:	bufferline.txt	/*NOTE:*
 bufferline	bufferline.txt	/*bufferline*
+bufferline-colorscheme-development	bufferline.txt	/*bufferline-colorscheme-development*
 bufferline-commands	bufferline.txt	/*bufferline-commands*
 bufferline-contents	bufferline.txt	/*bufferline-contents*
 bufferline-diagnostics	bufferline.txt	/*bufferline-diagnostics*
@@ -16,10 +17,12 @@ bufferline-numbers	bufferline.txt	/*bufferline-numbers*
 bufferline-offset	bufferline.txt	/*bufferline-offset*
 bufferline-ordering-groups	bufferline.txt	/*bufferline-ordering-groups*
 bufferline-pick	bufferline.txt	/*bufferline-pick*
+bufferline-pinning	bufferline.txt	/*bufferline-pinning*
 bufferline-regular-tabs	bufferline.txt	/*bufferline-regular-tabs*
 bufferline-settings	bufferline.txt	/*bufferline-settings*
 bufferline-sorting	bufferline.txt	/*bufferline-sorting*
 bufferline-styling	bufferline.txt	/*bufferline-styling*
+bufferline-tabs	bufferline.txt	/*bufferline-tabs*
 bufferline-usage	bufferline.txt	/*bufferline-usage*
 bufferline.nvim	bufferline.txt	/*bufferline.nvim*
 optional	bufferline.txt	/*optional*
