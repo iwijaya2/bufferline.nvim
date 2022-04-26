@@ -1,6 +1,15 @@
 local M = {}
 
 local fmt = string.format
+local lazy = require("bufferline.lazy")
+--- @module "bufferline.groups"
+local groups = lazy.require("bufferline.groups")
+--- @module "bufferline.utils"
+local utils = lazy.require("bufferline.utils")
+--- @module "bufferline.highlights"
+local highlights = lazy.require("bufferline.highlights")
+--- @module "bufferline.colors"
+local colors = lazy.require("bufferline.colors")
 
 ---@class DebugOpts
 ---@field logging boolean
@@ -12,11 +21,15 @@ local fmt = string.format
 ---@field options GroupOptions
 ---@field items Group[]
 
+---@alias BufferlineMode "'tabs'" | "'buffers'"
+
+---@alias DiagnosticIndicator fun(count: number, level: number, errors: table<string, any>, ctx: table<string, any>): string
+
 ---@class BufferlineOptions
+---@field public mode BufferlineMode
 ---@field public view string
 ---@field public debug DebugOpts
 ---@field public numbers string
----@field public number_style numbers_opt
 ---@field public buffer_close_icon string
 ---@field public modified_icon string
 ---@field public close_icon string
@@ -32,9 +45,10 @@ local fmt = string.format
 ---@field public name_formatter fun(path: string):string
 ---@field public tab_size number
 ---@field public max_name_length number
----@field public mappings boolean DEPRECATED
+---@field public color_icons boolean
 ---@field public show_buffer_icons boolean
 ---@field public show_buffer_close_icons boolean
+---@field public show_buffer_default_icon boolean
 ---@field public show_close_icon boolean
 ---@field public show_tab_indicators boolean
 ---@field public enforce_regular_tabs boolean
@@ -43,10 +57,11 @@ local fmt = string.format
 ---@field public max_prefix_length number
 ---@field public sort_by string
 ---@field public diagnostics boolean
----@field public diagnostics_indicator function?
+---@field public diagnostics_indicator DiagnosticIndicator
 ---@field public diagnostics_update_in_insert boolean
 ---@field public offsets table[]
 ---@field public groups GroupOpts
+---@field public themable boolean
 
 ---@class BufferlineHLGroup
 ---@field guifg string
@@ -64,28 +79,25 @@ local fmt = string.format
 ---@field private original BufferlineConfig original copy of user preferences
 
 --- Convert highlights specified as tables to the correct existing colours
----@param highlights BufferlineHighlights
-local function convert_highlights(highlights)
-  if not highlights or vim.tbl_isempty(highlights) then
+---@param map BufferlineHighlights
+local function convert_highlights(map)
+  if not map or vim.tbl_isempty(map) then
     return {}
   end
   -- we deep copy the highlights table as assigning the attributes
   -- will only pass the references so will mutate the original table otherwise
-  local updated = vim.deepcopy(highlights)
-  for hl, attributes in pairs(highlights) do
+  local updated = vim.deepcopy(map)
+  for hl, attributes in pairs(map) do
     for attribute, value in pairs(attributes) do
       if type(value) == "table" then
         if value.highlight and value.attribute then
-          updated[hl][attribute] = require("bufferline.colors").get_hex({
+          updated[hl][attribute] = colors.get_hex({
             name = value.highlight,
             attribute = value.attribute,
           })
         else
           updated[hl][attribute] = nil
-          require("bufferline.utils").echomsg(
-            string.format("removing %s as it is not formatted correctly", hl),
-            "WarningMsg"
-          )
+          utils.notify(fmt("removing %s as it is not formatted correctly", hl), utils.W)
         end
       end
     end
@@ -150,10 +162,7 @@ local function handle_deprecations(options)
     if deprecation then
       vim.schedule(function()
         local timeframe = deprecation.pending and "will be" or "has been"
-        vim.notify(
-          fmt("'%s' %s deprecated: %s", key, timeframe, deprecation.message),
-          vim.log.levels.WARN
-        )
+        utils.notify(fmt("'%s' %s deprecated: %s", key, timeframe, deprecation.message), utils.W)
       end)
     end
   end
@@ -187,18 +196,20 @@ function Config:validate(defaults)
       object,
       "Please check the README for all valid highlights",
     })
-    require("bufferline.utils").echomsg(msg, "WarningMsg")
+    utils.notify(msg, utils.E)
   end
 end
 
----Check if a specific feature is enabled
----@param feature '"groups"'
----@return boolean
-function Config:enabled(feature)
-  if feature == "groups" then
-    return self.options.groups and self.options.groups.items and #self.options.groups.items >= 1
-  end
-  return false
+function Config:mode()
+  return self.options.mode
+end
+
+function Config:is_bufferline()
+  return self:mode() == "buffers"
+end
+
+function Config:is_tabline()
+  return self:mode() == "tabs"
 end
 
 local nightly = vim.fn.has("nvim-0.6") > 0
@@ -206,7 +217,6 @@ local nightly = vim.fn.has("nvim-0.6") > 0
 ---Derive the colors for the bufferline
 ---@return BufferlineHighlights
 local function derive_colors()
-  local colors = require("bufferline.colors")
   local hex = colors.get_hex
   local shade = colors.shade_color
 
@@ -365,6 +375,19 @@ local function derive_colors()
       guifg = error_fg,
       guibg = background_color,
       gui = "bold,italic",
+    },
+    numbers = {
+      guifg = comment_fg,
+      guibg = background_color,
+    },
+    numbers_selected = {
+      guifg = normal_fg,
+      guibg = normal_bg,
+      gui = "bold,italic",
+    },
+    numbers_visible = {
+      guifg = comment_fg,
+      guibg = visible_bg,
     },
     diagnostic = {
       guifg = comment_diagnostic_fg,
@@ -719,9 +742,9 @@ local function get_defaults()
   return {
     ---@type BufferlineOptions
     options = {
-      view = "default",
+      mode = "buffers",
+      themable = true, -- whether or not bufferline highlights can be overriden externally
       numbers = "none",
-      number_style = "superscript",
       buffer_close_icon = "",
       modified_icon = "●",
       close_icon = "",
@@ -730,7 +753,7 @@ local function get_defaults()
       right_mouse_command = "bdelete! %d",
       middle_mouse_command = nil,
       -- U+2590 ▐ Right half block, this character is right aligned so the
-      -- background highlight doesn't appear in th middle
+      -- background highlight doesn't appear in the middle
       -- alternatives:  right aligned => ▕ ▐ ,  left aligned => ▍
       indicator_icon = "▎",
       left_trunc_marker = "",
@@ -740,8 +763,10 @@ local function get_defaults()
       tab_size = 18,
       max_name_length = 18,
       mappings = false,
+      color_icons = true,
       show_buffer_icons = true,
       show_buffer_close_icons = true,
+      show_buffer_default_icon = true,
       show_close_icon = true,
       show_tab_indicators = true,
       enforce_regular_tabs = false,
@@ -754,7 +779,7 @@ local function get_defaults()
       diagnostics_update_in_insert = true,
       offsets = {},
       groups = {
-        items = nil,
+        items = {},
         options = {
           toggle_hidden_on_enter = true,
         },
@@ -767,13 +792,34 @@ local function get_defaults()
   }
 end
 
+--- Resolve/change any incompatible options based on the values of other options
+--- e.g. in tabline only certain values are valid/certain options no longer make sense.
+function Config:resolve()
+  local is_tabline = self:is_tabline()
+  -- Don't show tab indicators in tabline mode
+  if is_tabline and self.options.show_tab_indicators then
+    self.options.show_tab_indicators = false
+  end
+  -- If the sort by mechanism is "tabs" but the user is in tabline mode
+  -- then the id will be that of the tabs so sort by should be id i.e. "tabs" sort
+  -- is redundant in tabs mode
+  if is_tabline and self.options.sort_by == "tabs" then
+    self.options.sort_by = "id"
+  end
+  if is_tabline then
+    self.options.close_command = "tabclose %d"
+    self.options.right_mouse_command = "tabclose %d"
+    self.options.left_mouse_command = vim.api.nvim_set_current_tabpage
+  end
+end
+
 ---Generate highlight groups from user
----@param highlights table<string, table>
+---@param map table<string, table>
 --- TODO: can this become part of a metatable for each highlight group so it is done at the point
 ---of usage
-local function add_highlight_groups(highlights)
-  for name, tbl in pairs(highlights) do
-    require("bufferline.highlights").add_group(name, tbl)
+local function add_highlight_groups(map)
+  for name, tbl in pairs(map) do
+    highlights.add_group(name, tbl)
   end
 end
 
@@ -783,9 +829,9 @@ function M.apply()
   local defaults = get_defaults()
   config:validate(defaults)
   config:merge(defaults)
-  if config:enabled("groups") then
-    require("bufferline.groups").setup(config)
-  end
+  config:resolve()
+  -- TODO: Can setting up of group highlights be constrained to the config module
+  groups.setup(config)
   add_highlight_groups(config.highlights)
   return config
 end
@@ -801,9 +847,7 @@ end
 ---Update highlight colours when the colour scheme changes
 function M.update_highlights()
   config:merge({ highlights = derive_colors() })
-  if config:enabled("groups") then
-    require("bufferline.groups").reset_highlights(config.highlights)
-  end
+  groups.reset_highlights(config.highlights)
   add_highlight_groups(config.highlights)
   return config
 end
@@ -826,4 +870,8 @@ function M.__reset()
   config = nil
 end
 
-return M
+return setmetatable(M, {
+  __index = function(_, k)
+    return config[k]
+  end,
+})

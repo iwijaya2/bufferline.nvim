@@ -1,105 +1,65 @@
-local constants = require("bufferline.constants")
-local utils = require("bufferline.utils")
+local lazy = require("bufferline.lazy")
+--- @module "bufferline.ui"
+local ui = lazy.require("bufferline.ui")
+--- @module "bufferline.utils"
+local utils = lazy.require("bufferline.utils")
+--- @module "bufferline.state"
+local state = lazy.require("bufferline.state")
+--- @module "bufferline.groups"
+local groups = lazy.require("bufferline.groups")
+--- @module "bufferline.config"
+local config = lazy.require("bufferline.config")
+--- @module "bufferline.sorters"
+local sorters = lazy.require("bufferline.sorters")
+--- @module "bufferline.buffers"
+local buffers = lazy.require("bufferline.buffers")
+--- @module "bufferline.commands"
+local commands = lazy.require("bufferline.commands")
+--- @module "bufferline.tabpages"
+local tabpages = lazy.require("bufferline.tabpages")
+--- @module "bufferline.constants"
+local constants = lazy.require("bufferline.constants")
+--- @module "bufferline.highlights"
+local highlights = lazy.require("bufferline.highlights")
 
 local api = vim.api
-local fn = vim.fn
 local fmt = string.format
--- string.len counts number of bytes and so the unicode icons are counted
--- larger than their display width. So we use nvim's strwidth
-local strwidth = vim.fn.strwidth
 
-local padding = constants.padding
-local sep_names = constants.sep_names
-local sep_chars = constants.sep_chars
 local positions_key = constants.positions_key
 
-local M = {}
+local M = {
+  move = commands.move,
+  exec = commands.exec,
+  go_to = commands.go_to,
+  cycle = commands.cycle,
+  sort_by = commands.sort_by,
+  pick_buffer = commands.pick,
+  handle_close = commands.handle_close,
+  handle_click = commands.handle_click,
+  close_with_pick = commands.close_with_pick,
+  close_in_direction = commands.close_in_direction,
+  handle_group_click = commands.handle_group_click,
+  -- @deprecate
+  go_to_buffer = commands.go_to,
+  sort_buffers_by = commands.sort_by,
+  close_buffer_with_pick = commands.close_with_pick,
+}
 
 --- Global namespace for callbacks and other use cases such as commandline completion functions
 _G.__bufferline = __bufferline or {}
-
------------------------------------------------------------------------------//
--- State
------------------------------------------------------------------------------//
----@class BufferlineState
----@field components Component[]
----@field visible_components Component[]
----@field __components Component[]
----@field __visible_components Component[]
----@field custom_sort number[]
-local state = {
-  is_picking = false,
-  custom_sort = nil,
-  __components = {},
-  __visible_components = {},
-  components = {},
-  visible_components = {},
-}
-
------------------------------------------------------------------------------//
--- Context
------------------------------------------------------------------------------//
-
----@class RenderContext
----@field length number
----@field component string
----@field preferences BufferlineConfig
----@field current_highlights table<string, table<string, string>>
----@field tab Component
----@field separators table<string, string>
----@type RenderContext
-local Context = {}
-
----@param ctx RenderContext
----@return RenderContext
-function Context:new(ctx)
-  assert(ctx.tab, "A tab view entity is required to create a context")
-  assert(ctx.preferences, "The user's preferences are required to create a context")
-  self.length = ctx.length or 0
-  self.tab = ctx.tab
-  self.preferences = ctx.preferences
-  self.component = ctx.component or ""
-  self.separators = ctx.component or { left = "", right = "" }
-  self.__index = self
-  return setmetatable(ctx, self)
-end
-
----@param o RenderContext
----@return RenderContext
-function Context:update(o)
-  for k, v in pairs(o) do
-    if v ~= nil then
-      self[k] = v
-    end
-  end
-  return self
-end
-
 -----------------------------------------------------------------------------//
 -- Helpers
 -----------------------------------------------------------------------------//
-
-local function refresh()
-  vim.cmd("redrawtabline")
-  vim.cmd("redraw")
-end
-
----@param bufs number[]
-local function save_positions(bufs)
-  local positions = table.concat(bufs, ",")
-  vim.g[positions_key] = positions
-end
-
 function M.restore_positions()
   local str = vim.g[positions_key]
   if not str then
     return str
   end
-  local buf_ids = vim.split(str, ",")
-  if buf_ids and #buf_ids > 0 then
+  local ids = vim.split(str, ",")
+  if ids and #ids > 0 then
     -- these are converted to strings when stored
     -- so have to be converted back before usage
-    state.custom_sort = vim.tbl_map(tonumber, buf_ids)
+    state.custom_sort = vim.tbl_map(tonumber, ids)
   end
 end
 
@@ -930,167 +890,61 @@ local function sorter(list)
   if state.custom_sort then
     return list
   end
-  local options = require("bufferline.config").get("options")
-  require("bufferline.sorters").sort_buffers(options.sort_by, list)
-  return list
+  return sorters.sort(list, nil, state)
 end
 
---- @param components Component[]
---- @param tabpages table[]
---- @param config BufferlineConfig
---- @return string
-local function render(components, tabpages, config)
-  local options = config.options
-  local hl = config.highlights
-  local right_align = "%="
-  local tab_components = ""
-  local close, close_length = "", 0
-  if options.show_close_icon then
-    close, close_length = tab_close_button(options.close_icon)
-  end
-  local tabs_length = 0
-
-  if options.show_tab_indicators then
-    -- Add the length of the tabs + close components to total length
-    if #tabpages > 1 then
-      for _, t in pairs(tabpages) do
-        if not vim.tbl_isempty(t) then
-          tabs_length = tabs_length + t.length
-          tab_components = tab_components .. t.component
-        end
-      end
+---Get the index of the current element
+---@param current_state BufferlineState
+---@return number
+local function get_current_index(current_state)
+  for index, component in ipairs(current_state.components) do
+    if component:current() then
+      return index
     end
   end
+end
 
-  local join = utils.join
+--- @return string
+local function bufferline()
+  local conf = config.get()
+  local tabs = tabpages.get()
+  local is_tabline = conf:is_tabline()
+  local components = is_tabline and tabpages.get_components(state) or buffers.get_components(state)
 
-  -- Icons from https://fontawesome.com/cheatsheet
-  local left_trunc_icon = options.left_trunc_marker
-  local right_trunc_icon = options.right_trunc_marker
-  local left_element_size = utils.measure(padding, padding, left_trunc_icon, padding, padding)
-  local right_element_size = utils.measure(padding, padding, right_trunc_icon, padding)
+  --- NOTE: this cannot be added to state as a metamethod since
+  --- state is not actually set till after sorting and component creation is done
+  state.set({ current_element_index = get_current_index(state) })
+  components = not is_tabline and groups.render(components, sorter) or sorter(components)
+  local tabline, visible_components = ui.render(components, tabs)
 
-  local offset_size, left_offset, right_offset = require("bufferline.offset").get(config)
-  local custom_area_size, left_area, right_area = require("bufferline.custom_area").get(config)
-
-  local available_width = vim.o.columns
-    - custom_area_size
-    - offset_size
-    - tabs_length
-    - close_length
-
-  if config:enabled("groups") then
-    components = require("bufferline.groups").render(components, sorter)
-  else
-    components = sorter(components)
-  end
-
-  local before, current, after = get_sections(components)
-  local line, marker, visible_components = truncate(before, current, after, available_width, {
-    left_count = 0,
-    right_count = 0,
-    left_element_size = left_element_size,
-    right_element_size = right_element_size,
+  state.set({
+    --- store the full unfiltered lists
+    __components = components,
+    --- Store copies without focusable/hidden elements
+    components = filter_invisible(components),
+    visible_components = filter_invisible(visible_components),
   })
-
-  --- store the full unfiltered lists
-  state.__components = components
-  state.__visible_components = visible_components
-
-  --- Store copies without focusable/hidden elements
-  state.components = filter_invisible(components)
-  state.visible_components = filter_invisible(visible_components)
-
-  if marker.left_count > 0 then
-    local icon = truncation_component(marker.left_count, left_trunc_icon, hl)
-    line = join(hl.background.hl, icon, padding, line)
-  end
-  if marker.right_count > 0 then
-    local icon = truncation_component(marker.right_count, right_trunc_icon, hl)
-    line = join(line, hl.background.hl, icon)
-  end
-
-  return join(
-    left_offset,
-    left_area,
-    line,
-    hl.fill.hl,
-    right_align,
-    tab_components,
-    hl.tab_close.hl,
-    close,
-    right_area,
-    right_offset
-  )
+  return tabline
 end
 
---- @param config BufferlineConfig
---- @return string
-local function bufferline(config)
-  local options = config.options
-  local buf_nums = utils.get_valid_buffers()
-  if options and options.custom_filter then
-    buf_nums = apply_buffer_filter(buf_nums, options.custom_filter)
-  end
-  buf_nums = get_updated_buffers(buf_nums, state.custom_sort)
-  local tabpages = require("bufferline.tabpages").get(options.separator_style, config)
-
-  if not options.always_show_bufferline then
-    if #buf_nums == 1 then
-      vim.o.showtabline = 0
-      return
-    end
-  end
-
-  local pick = require("bufferline.pick")
-  local duplicates = require("bufferline.duplicates")
-  local has_groups = config:enabled("groups")
-
-  pick.reset()
-  duplicates.reset()
-  ---@type Buffer[]
-  local buffers = {}
-  local all_diagnostics = require("bufferline.diagnostics").get(options)
-  local Buffer = require("bufferline.models").Buffer
-  for i, buf_id in ipairs(buf_nums) do
-    local buf = Buffer:new({
-      path = vim.fn.bufname(buf_id),
-      id = buf_id,
-      ordinal = i,
-      diagnostics = all_diagnostics[buf_id],
-      name_formatter = options.name_formatter,
-    })
-    buf.letter = pick.get(buf)
-    if has_groups then
-      buf.group = require("bufferline.groups").set_id(buf)
-    end
-    buffers[i] = buf
-  end
-
-  local deduplicated = duplicates.mark(buffers)
-  buffers = vim.tbl_map(function(buf)
-    buf.component, buf.length = render_buffer(config, buf)
-    return buf
-  end, deduplicated)
-
-  return render(buffers, tabpages, config)
-end
-
+--- If the item count has changed and the next tabline status is different then update it
 function M.toggle_bufferline()
-  local opts = require("bufferline.config").get("options")
-  local status = (opts.always_show_bufferline or #fn.getbufinfo({ buflisted = 1 }) > 1) and 2 or 0
-  vim.o.showtabline = status
+  local item_count = config:is_tabline() and utils.get_tab_count() or utils.get_buf_count()
+  local status = (config.options.always_show_bufferline or item_count > 1) and 2 or 0
+  if vim.o.showtabline ~= status then
+    vim.o.showtabline = status
+  end
 end
 
 ---@private
 function M.__apply_colors()
-  local current_prefs = require("bufferline.config").update_highlights()
-  require("bufferline.highlights").set_all(current_prefs.highlights)
+  local current_prefs = config.update_highlights()
+  highlights.set_all(current_prefs.highlights)
 end
 
----@param config BufferlineConfig
-local function setup_autocommands(config)
-  local options = config.options
+---@param conf BufferlineConfig
+local function setup_autocommands(conf)
+  local options = conf.options
   local autocommands = {
     { "ColorScheme", "*", [[lua require('bufferline').__apply_colors()]] },
   }
@@ -1113,19 +967,17 @@ local function setup_autocommands(config)
     })
   end
 
-  if config:enabled("groups") then
-    table.insert(autocommands, {
-      "BufReadPre",
-      "*",
-      "++once",
-      "lua vim.schedule(require'bufferline'.handle_group_enter)",
-    })
-    table.insert(autocommands, {
-      "BufEnter",
-      "*",
-      "lua require'bufferline'.handle_group_enter()",
-    })
-  end
+  table.insert(autocommands, {
+    "BufRead",
+    "*",
+    "++once",
+    "lua vim.schedule(require'bufferline'.handle_group_enter)",
+  })
+  table.insert(autocommands, {
+    "BufEnter",
+    "*",
+    "lua require'bufferline'.handle_group_enter()",
+  })
 
   utils.augroup({ BufferlineColors = autocommands })
 end
@@ -1136,27 +988,35 @@ end
 ---@param action group_actions | fun(b: Buffer)
 function M.group_action(name, action)
   assert(name, "A name must be passed to execute a group action")
-  local groups = require("bufferline.groups")
   if action == "close" then
     groups.command(name, function(b)
       api.nvim_buf_delete(b.id, { force = true })
     end)
   elseif action == "toggle" then
-    require("bufferline.groups").toggle_hidden(nil, name)
-    refresh()
+    groups.toggle_hidden(nil, name)
+    ui.refresh()
   elseif type(action) == "function" then
     groups.command(name, action)
   end
 end
 
+function M.toggle_pin()
+  local _, buffer = commands.get_current_element_index(state)
+  if groups.is_pinned(buffer) then
+    groups.remove_from_group("pinned", buffer)
+  else
+    groups.add_to_group("pinned", buffer)
+  end
+  ui.refresh()
+end
+
 function M.handle_group_enter()
-  local options = require("bufferline.config").get("options")
-  local _, buf = get_current_buf_index({ include_hidden = true })
-  if not buf then
+  local options = config.options
+  local _, element = commands.get_current_element_index(state, { include_hidden = true })
+  if not element or not element.group then
     return
   end
-  local groups = require("bufferline.groups")
-  local current_group = groups.get_by_id(buf.group)
+  local current_group = groups.get_by_id(element.group)
   if options.groups.options.toggle_hidden_on_enter then
     if current_group.hidden then
       groups.set_hidden(current_group.id, false)
@@ -1174,8 +1034,9 @@ end
 ---@param cmd_line string
 ---@param cursor_pos number
 ---@return string[]
+---@diagnostic disable-next-line: unused-local
 function __bufferline.complete_groups(arg_lead, cmd_line, cursor_pos)
-  return require("bufferline.groups").names()
+  return groups.names()
 end
 
 local function setup_commands()
@@ -1205,6 +1066,11 @@ local function setup_commands()
       cmd = 'group_action(<q-args>, "toggle")',
       complete = "complete_groups",
     },
+    {
+      nargs = 0,
+      name = "BufferLineTogglePin",
+      cmd = "toggle_pin()",
+    },
   }
   for _, cmd in ipairs(cmds) do
     local nargs = cmd.nargs and fmt("-nargs=%d", cmd.nargs) or ""
@@ -1219,39 +1085,22 @@ end
 
 ---@private
 function _G.nvim_bufferline()
-  return bufferline(require("bufferline.config").get())
+  -- Always populate state regardless of if tabline status is less than 2 #352
+  M.toggle_bufferline()
+  return bufferline()
 end
 
----@private
-function M.__load()
-  local config = require("bufferline.config")
+---@param conf BufferlineConfig
+function M.setup(conf)
+  conf = conf or {}
+  config.set(conf)
   local preferences = config.apply()
   -- on loading (and reloading) the plugin's config reset all the highlights
-  require("bufferline.highlights").set_all(preferences.highlights)
-  -- TODO: don't reapply commands and autocommands if load has already been called
+  highlights.set_all(preferences.highlights)
   setup_commands()
   setup_autocommands(preferences)
   vim.o.tabline = "%!v:lua.nvim_bufferline()"
   M.toggle_bufferline()
-end
-
----@param config BufferlineConfig
-function M.setup(config)
-  config = config or {}
-  require("bufferline.config").set(config)
-  if vim.v.vim_did_enter == 1 then
-    M.__load()
-  else
-    -- defer the first load of the plugin till vim has started
-    require("bufferline.utils").augroup({
-      BufferlineLoad = { { "VimEnter", "*", "++once", "lua require('bufferline').__load()" } },
-    })
-  end
-end
-
-if utils.is_test() then
-  M._state = state
-  M._get_current_buf_index = get_current_buf_index
 end
 
 return M

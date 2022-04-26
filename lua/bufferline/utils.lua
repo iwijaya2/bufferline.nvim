@@ -1,6 +1,12 @@
 ---------------------------------------------------------------------------//
 -- HELPERS
 ---------------------------------------------------------------------------//
+local lazy = require("bufferline.lazy")
+--- @module "bufferline.constants"
+local constants = lazy.require("bufferline.constants")
+--- @module "bufferline.config"
+local config = lazy.require("bufferline.config")
+
 local M = { log = {} }
 
 local fmt = string.format
@@ -14,16 +20,20 @@ end
 
 ---@return boolean
 local function check_logging()
-  ---@type BufferlineOptions
-  local config = require("bufferline.config").get("options")
-  return config.debug.logging
+  return config.options.debug.logging
 end
 
 ---@param msg string
 function M.log.debug(msg)
   if check_logging() then
     local info = debug.getinfo(2, "S")
-    print(fmt("[bufferline]: %s\n%s\n%s", msg, info.linedefined, info.short_src))
+    vim.schedule(function()
+      M.notify(
+        fmt("[bufferline]: %s\n%s:%s", msg, info.linedefined, info.short_src),
+        M.D,
+        { once = true }
+      )
+    end)
   end
 end
 
@@ -205,56 +215,70 @@ function M.is_valid(buf_num)
   return vim.bo[buf_num].buflisted and exists
 end
 
+---@return number
+function M.get_buf_count()
+  return #fn.getbufinfo({ buflisted = 1 })
+end
+
 ---@return number[]
 function M.get_valid_buffers()
-  local buf_nums = vim.api.nvim_list_bufs()
-  local ids = {}
-  for _, buf in ipairs(buf_nums) do
-    if M.is_valid(buf) then
-      ids[#ids + 1] = buf
-    end
+  return vim.tbl_filter(M.is_valid, vim.api.nvim_list_bufs())
+end
+
+---@return number
+function M.get_tab_count()
+  return #fn.gettabinfo()
+end
+
+M.W = vim.log.levels.WARN
+M.E = vim.log.levels.ERROR
+M.I = vim.log.levels.INFO
+M.D = vim.log.levels.DEBUG
+
+--- Wrapper around `vim.notify` that adds message metadata
+---@param msg string
+---@param level number
+function M.notify(msg, level, opts)
+  opts = opts or {}
+  local nopts = { title = "Bufferline" }
+  if opts.once then
+    return vim.notify_once(msg, level, nopts)
   end
-  return ids
+  vim.notify(msg, level, nopts)
 end
 
----Print an error message to the commandline
----@param msg string
-function M.echoerr(msg)
-  M.echomsg(msg, "ErrorMsg")
-end
-
----Print a message to the commandline
----@param msg string
----@param hl string?
-function M.echomsg(msg, hl)
-  hl = hl or "Title"
-  vim.api.nvim_echo({ { fmt("[bufferline] %s", msg), hl } }, true, {})
-end
+---@class GetIconOpts
+---@field directory boolean
+---@field path string
+---@field extension string
 
 ---Get an icon for a filetype using either nvim-web-devicons or vim-devicons
 ---if using the lua plugin this also returns the icon's highlights
----@param buf Buffer
----@param is_directory boolean
+---@param opts GetIconOpts
 ---@return string, string?
-function M.get_icon(buf, is_directory)
+function M.get_icon(opts)
   local loaded, webdev_icons = pcall(require, "nvim-web-devicons")
-  if is_directory then
+  if opts.directory then
     local hl = loaded and "DevIconDefault" or nil
-    return "", hl
+    return constants.FOLDER_ICON, hl
   end
-  if buf.buftype == "terminal" then
-    -- NOTE: use an explicit if statement so both values from get icon can be returned
-    -- this does not work if a ternary is used instead as only a single value is returned
-    if not loaded then
-      return ""
+  if not loaded then
+    if fn.exists("*WebDevIconsGetFileTypeSymbol") > 0 then
+      return fn.WebDevIconsGetFileTypeSymbol(opts.path), ""
     end
-    return webdev_icons.get_icon(buf.buftype)
+    return "", ""
   end
-  if loaded then
-    return webdev_icons.get_icon(fn.fnamemodify(buf.path, ":t"), buf.extension, { default = true })
+  if type == "terminal" then
+    return webdev_icons.get_icon(type)
   end
-  local devicons_loaded = fn.exists("*WebDevIconsGetFileTypeSymbol") > 0
-  return devicons_loaded and fn.WebDevIconsGetFileTypeSymbol(buf.path) or ""
+  local name = fn.fnamemodify(opts.path, ":t")
+  local icon, hl = webdev_icons.get_icon(name, opts.extension, {
+    default = config.options.show_buffer_default_icon,
+  })
+  if not icon then
+    return "", ""
+  end
+  return icon, hl
 end
 
 ---Add click action to a component
@@ -286,18 +310,18 @@ local function truncate_by_cell(str, col_limit)
   return short
 end
 
-function M.truncate_filename(filename, word_limit)
+function M.truncate_name(name, word_limit)
   local trunc_symbol = "…"
-  if api.nvim_strwidth(filename) <= word_limit then
-    return filename
+  if api.nvim_strwidth(name) <= word_limit then
+    return name
   end
   -- truncate nicely by seeing if we can drop the extension first
   -- to make things fit if not then truncate abruptly
-  local without_prefix = fn.fnamemodify(filename, ":t:r")
+  local without_prefix = fn.fnamemodify(name, ":t:r")
   if api.nvim_strwidth(without_prefix) < word_limit then
     return without_prefix .. trunc_symbol
   end
-  return truncate_by_cell(filename, word_limit - 1) .. trunc_symbol
+  return truncate_by_cell(name, word_limit - 1) .. trunc_symbol
 end
 
 function M.is_truthy(value)

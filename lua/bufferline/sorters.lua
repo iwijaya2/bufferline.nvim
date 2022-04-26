@@ -1,3 +1,5 @@
+local config = require("bufferline.config")
+
 local M = {}
 ---------------------------------------------------------------------------//
 -- Sorters
@@ -17,7 +19,7 @@ end
 --- @param buf_a Buffer
 --- @param buf_b Buffer
 local function sort_by_extension(buf_a, buf_b)
-  return fnamemodify(buf_a.filename, ":e") < fnamemodify(buf_b.filename, ":e")
+  return fnamemodify(buf_a.name, ":e") < fnamemodify(buf_b.name, ":e")
 end
 
 --- @param buf_a Buffer
@@ -88,26 +90,75 @@ local function sort_by_tabs(buf_a, buf_b)
   return buf_a_tabnr < buf_b_tabnr
 end
 
---- sorts a list of buffers in place
---- @param sort_by string|function
---- @param buffers Buffer[]
-function M.sort_buffers(sort_by, buffers)
-  if sort_by == "extension" then
-    table.sort(buffers, sort_by_extension)
-  elseif sort_by == "directory" then
-    table.sort(buffers, sort_by_directory)
-  elseif sort_by == "relative_directory" then
-    table.sort(buffers, sort_by_relative_directory)
-  elseif sort_by == "id" then
-    table.sort(buffers, sort_by_id)
-  elseif sort_by == "tabs" then
-    table.sort(buffers, sort_by_tabs)
-  elseif type(sort_by) == "function" then
-    table.sort(buffers, sort_by)
+--- @param state BufferlineState
+local sort_by_new_after_existing = function(state)
+  --- @param item_a Buffer
+  --- @param item_b Buffer
+  return function(item_a, item_b)
+    if item_a:is_new(state) and item_b:is_existing(state) then
+      return false
+    elseif item_a:is_existing(state) and item_b:is_new(state) then
+      return true
+    end
+    return item_a.id < item_b.id
   end
-  for index, buf in ipairs(buffers) do
+end
+
+--- @param state BufferlineState
+local sort_by_new_after_current = function(state)
+  --- @param item_a Buffer
+  --- @param item_b Buffer
+  return function(item_a, item_b)
+    local a_index = item_a:find_index(state)
+    local a_is_new = item_a:is_new(state)
+    local b_index = item_b:find_index(state)
+    local b_is_new = item_b:is_new(state)
+    local current_index = state.current_element_index or 1
+    if not a_is_new and not b_is_new then
+      -- If both buffers are either before or after (inclusive) the current
+      -- buffer, respect the current order.
+      if (a_index - current_index) * (b_index - current_index) >= 0 then
+        return a_index < b_index
+      end
+      return a_index < current_index
+    elseif not a_is_new and b_is_new then
+      return a_index <= current_index
+    elseif a_is_new and not b_is_new then
+      return current_index < b_index
+    end
+    return item_a.id < item_b.id
+  end
+end
+
+--- sorts a list of buffers in place
+--- @param elements TabElement[]
+--- @param sort_by string?
+--- @param state BufferlineState
+function M.sort(elements, sort_by, state)
+  sort_by = sort_by or config.options.sort_by
+  if sort_by == "none" then
+    return elements
+  elseif sort_by == "insert_after_current" then
+    table.sort(elements, sort_by_new_after_current(state))
+  elseif sort_by == "insert_at_end" then
+    table.sort(elements, sort_by_new_after_existing(state))
+  elseif sort_by == "extension" then
+    table.sort(elements, sort_by_extension)
+  elseif sort_by == "directory" then
+    table.sort(elements, sort_by_directory)
+  elseif sort_by == "relative_directory" then
+    table.sort(elements, sort_by_relative_directory)
+  elseif sort_by == "id" then
+    table.sort(elements, sort_by_id)
+  elseif sort_by == "tabs" then
+    table.sort(elements, config:is_tabline() and sort_by_id or sort_by_tabs)
+  elseif type(sort_by) == "function" then
+    table.sort(elements, sort_by)
+  end
+  for index, buf in ipairs(elements) do
     buf.ordinal = index
   end
+  return elements
 end
 
 return M

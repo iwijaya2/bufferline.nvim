@@ -12,6 +12,7 @@ Introduction...........................: |bufferline-introduction|
 Usage..................................: |bufferline-usage|
 Settings...............................: |bufferline-settings|
 Styling................................: |bufferline-styling|
+Tabpages...............................: |bufferline-tabpages|
 Numbers................................: |bufferline-numbers|
 LSP Diagnostics........................: |bufferline-diagnostics|
 Groups.................................: |bufferline-groups|
@@ -29,7 +30,7 @@ Issues.................................: |bufferline-issues|
 ==============================================================================
 INTRODUCTION				        *bufferline-introduction*
 
-A _snazzy_ 💅 buffer line (with minimal tab integration) for Neovim built
+A _snazzy_ 💅 buffer line (tab integration) for Neovim built
 using `lua`.
 
 This plugin shamelessly attempts to emulate the aesthetics of GUI text
@@ -53,6 +54,8 @@ The available settings are: >
 
     require"bufferline".setup{
         options = {
+            mode = "buffers", -- can also be set to "tabs" to see tabpages
+            themable = false -- whether or not the highlights for this plugin can be overriden.
             numbers = "none" | "ordinal" | "buffer_id" | "both" | function({ ordinal, id, lower, raise }): string,
             --- @deprecated, please specify numbers as a function to customize the styling
             number_style = "superscript" | "" | { "none", "subscript" }, -- buffer_id at index 1, ordinal at index 2
@@ -86,6 +89,7 @@ The available settings are: >
             groups = {} -- see :h bufferline-groups for details
             show_buffer_icons = true | false,
             show_buffer_close_icons = true | false,
+            show_buffer_default_icon = true | false, -- whether or not an unrecognised filetype should show a default icon
             show_close_icon = true | false,
             show_tab_indicators = true | false
             persist_buffer_sort = true, -- whether or not custom sorted buffers should persist
@@ -115,6 +119,18 @@ You can change the appearance of the bufferline separators by setting the
 * finally you can pass in a custom list containing 2 characters which will be
   used as the separators e.g. `{"|", "|"}`, the first is the left and the
   second is the right separator
+
+
+==============================================================================
+TABPAGES                                                          *bufferline-tabs*
+
+This plugin can also be set to show only tabpages. This can be done by setting the `mode` option to `tabs`. This will change the bufferline to a tabline
+it has a lot of the same features/styling but not all.
+A few things to note are
+
+* Diagnostics only show if the buffer with issues is the current window selected in that tab page
+* Sorting doesn't work yet as that needs to be thought through.
+* Grouping doesn't work yet as that also needs to be thought through.
 
 
 ==============================================================================
@@ -263,6 +279,31 @@ e.g.
         end)
     end
 <
+
+==============================================================================
+PINNING BUFFERS                                           *bufferline-pinning*
+
+Buffers can be pinned to the start of the bufferline by using the
+`:BufferLineTogglePin` command, this will override other groupings or sorting
+order for the buffer and position it left of all other buffers.
+
+Pinned buffers are essentially a builtin group that positions the assigned
+elements. The icons and highlights for pinned buffers can be changed similarly
+to other groups e.g.
+
+>
+ config = {
+    options = {
+        groups = {
+            items = {
+                require('bufferline.groups').builtin.pinned:with({ icon = "" })
+                ... -- other items
+            }
+        }
+    }
+ }
+<
+
 ==============================================================================
 REGULAR TAB SIZES                                  *bufferline-regular-tabs*
 
@@ -782,6 +823,30 @@ highlight command. See `:h highlight` .
         };
     }
 <
+
+==============================================================================
+COLORSCHEME DEVELOPMENT                                           *bufferline-colorscheme-development*
+
+Bufferline was initially developed to work without external highlight
+configuration by colorschemes. It takes default highlights from neovim and
+adapts these for it's usage. The highlight groups it uses are
+The `->` represents the fallback chain for a highlight.
+
+`Normal`
+`String`
+`DiagnosticError` -> `LspDiagnosticsDefaultError`
+`DiagnosticWarn` -> `LspDiagnosticsDefaultWarn` -> `WarningMsg`
+`DiagnosticHint` -> `LspDiagnosticsDefaultHint` -> `Directory`
+`DiagnosticInfo` -> `LspDiagnosticsDefaultInfo` -> `Normal`
+`TabLineSel` -> `WildMenu`
+
+If the above groups are correctly highlighted then bufferline should appear
+as intended where it can be i.e. sufficient contrast etc.
+
+If however a colorscheme intends to override bufferline highlight groups
+a user can set the `themable` option in their bufferline config to `true`.
+This will change bufferline's highlights to use the `default` keyword
+so they can be more easily overriden if that is the user's preference.
 
 ==============================================================================
 ISSUES							*bufferline-issues*

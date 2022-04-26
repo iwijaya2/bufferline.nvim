@@ -1,8 +1,16 @@
+local lazy = require("bufferline.lazy")
+--- @module "bufferline.utils"
+local utils = lazy.require("bufferline.utils")
+--- @module "bufferline.constants"
+local constants = lazy.require("bufferline.constants")
+
 local M = {}
 
 local api = vim.api
 local fn = vim.fn
 local fmt = string.format
+local log = utils.log
+local visibility = constants.visibility
 
 --[[
 -----------------------------------------------------------------------------//
@@ -23,16 +31,17 @@ i.e.
 --- The base class that represents a visual tab in the tabline
 --- i.e. not necessarily representative of a vim tab or buffer
 ---@class Component
+---@field id number
 ---@field length number
 ---@field component function
 ---@field hidden boolean
 ---@field focusable boolean
----@field type "'group_end'" | "'group_start'" | "'buffer'"
+---@field type "'group_end'" | "'group_start'" | "'buffer'" | "'tabpage'"
 local Component = {}
 
 ---@param field string
 local function not_implemented(field)
-  require("bufferline.utils").log.debug(debug.traceback("Stack trace:"))
+  log.debug(debug.traceback("Stack trace:"))
   error(fmt("%s is not implemented yet", field))
 end
 
@@ -63,15 +72,11 @@ function Component:is_end()
   return self.type:match("group")
 end
 
----@return Buffer?
-function Component:as_buffer()
-  if self.type ~= "buffer" then
-    require("bufferline.utils").log.debug(
-      fmt("This entity is not a buffer, it is a %s.", self.type)
-    )
-    return
+---@return TabElement?
+function Component:as_element()
+  if vim.tbl_contains({ "buffer", "tab" }, self.type) then
+    return self
   end
-  return self
 end
 
 local GroupView = Component:new({ type = "group", focusable = false })
@@ -89,6 +94,53 @@ function GroupView:current()
   return false
 end
 
+---@alias TabElement Tabpage|Buffer
+
+---@class Tabpage
+---@field public id number
+---@field public buf number
+---@field public icon string
+---@field public name string
+---@field public letter string
+---@field public modified boolean
+---@field public modifiable boolean
+---@field public extension string the file extension
+---@field public path string the full path to the file
+local Tabpage = Component:new({ type = "tab" })
+
+function Tabpage:new(tab)
+  tab.name = fn.fnamemodify(tab.path, ":t")
+  assert(tab.buf, fmt("A tab must a have a buffer: %s", vim.inspect(tab)))
+  tab.modifiable = vim.bo[tab.buf].modifiable
+  tab.modified = vim.bo[tab.buf].modified
+  tab.buftype = vim.bo[tab.buf].buftype
+  tab.extension = fn.fnamemodify(tab.path, ":e")
+  tab.icon, tab.icon_highlight = utils.get_icon({
+    directory = fn.isdirectory(tab.path) > 0,
+    path = tab.path,
+    extension = tab.extension,
+    type = tab.buftype,
+  })
+  setmetatable(tab, self)
+  self.__index = self
+  return tab
+end
+
+function Tabpage:visibility()
+  return self:current() and visibility.SELECTED
+    or self:visible() and visibility.INACTIVE
+    or visibility.NONE
+end
+
+function Tabpage:current()
+  return api.nvim_get_current_tabpage() == self.id
+end
+
+--- NOTE: A visible tab page is the current tab page
+function Tabpage:visible()
+  return api.nvim_get_current_tabpage() == self.id
+end
+
 ---@alias BufferComponent fun(index: number, buf_count: number): string
 
 -- A single buffer class
@@ -98,7 +150,8 @@ end
 ---@field public path string the full path to the file
 ---@field public name_formatter function? dictates how the name should be shown
 ---@field public id integer the buffer number
----@field public filename string the visible name for the file
+---@field public name string the visible name for the file
+---@deprecated public filename string the visible name for the file
 ---@field public icon string the icon
 ---@field public icon_highlight string
 ---@field public diagnostics table
@@ -125,7 +178,12 @@ function Buffer:new(buf)
   buf.buftype = vim.bo[buf.id].buftype
   buf.extension = fn.fnamemodify(buf.path, ":e")
   local is_directory = fn.isdirectory(buf.path) > 0
-  buf.icon, buf.icon_highlight = require("bufferline.utils").get_icon(buf, is_directory)
+  buf.icon, buf.icon_highlight = utils.get_icon({
+    directory = is_directory,
+    path = buf.path,
+    extension = buf.extension,
+    type = buf.buftype,
+  })
   local name = "[No Name]"
   if buf.path and #buf.path > 0 then
     name = fn.fnamemodify(buf.path, ":t")
@@ -134,22 +192,46 @@ function Buffer:new(buf)
       name = buf.name_formatter({ name = name, path = buf.path, bufnr = buf.id }) or name
     end
   end
-  buf.filename = name
+  buf.name = name
+  buf.filename = name -- TODO: remove this field
   setmetatable(buf, self)
   self.__index = self
   return buf
 end
 
--- Borrowed this trick from
--- https://github.com/bagrat/vim-buffet/blob/28e8535766f1a48e6006dc70178985de2b8c026d/autoload/buffet.vim#L186
--- If the current buffer in the current window has a matching ID it is ours and so should
--- have the main selected highlighting. If it isn't but it is the window highlight it as inactive
--- the "trick" here is that "bufwinnr" returns a value which is the first window associated with a buffer
--- if there are no windows associated i.e. it is not in view and the function returns -1
--- FIXME: this does not work if the same buffer is open in multiple window
--- maybe do something with win_findbuf(bufnr('%'))
+function Buffer:visibility()
+  return self:current() and visibility.SELECTED
+    or self:visible() and visibility.INACTIVE
+    or visibility.NONE
+end
+
 function Buffer:current()
-  return api.nvim_win_get_buf(api.nvim_get_current_win()) == self.id
+  return api.nvim_get_current_buf() == self.id
+end
+
+--- If the buffer is already part of state then it is existing
+--- otherwise it is new
+---@param state BufferlineState
+---@return boolean
+function Buffer:is_existing(state)
+  return utils.find(state.components, function(component)
+    return component.id == self.id
+  end) ~= nil
+end
+
+-- Find and return the index of the matching buffer (by id) in the list in state
+--- @param state BufferlineState
+function Buffer:find_index(state)
+  for index, component in ipairs(state.components) do
+    if component.id == self.id then
+      return index
+    end
+  end
+end
+
+-- @param state BufferlineState
+function Buffer:is_new(state)
+  return not self:is_existing(state)
 end
 
 function Buffer:visible()
@@ -217,6 +299,7 @@ function Section:add(item)
 end
 
 M.Buffer = Buffer
+M.Tabpage = Tabpage
 M.Section = Section
 M.GroupView = GroupView
 
