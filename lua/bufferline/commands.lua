@@ -16,6 +16,8 @@ local groups = lazy.require("bufferline.groups")
 local sorters = lazy.require("bufferline.sorters")
 ---@module "bufferline.constants"
 local constants = lazy.require("bufferline.constants")
+---@module "bufferline.pick"
+local pick = lazy.require("bufferline.pick")
 
 local M = {}
 
@@ -116,7 +118,7 @@ end
 
 ---Execute an arbitrary user function on a visible by it's position buffer
 ---@param index number
----@param func fun(num: number)
+---@param func fun(num: number, table?)
 function M.exec(index, func)
   local target = state.visible_components[index]
   if target and type(func) == "function" then
@@ -124,31 +126,12 @@ function M.exec(index, func)
   end
 end
 
--- Prompts user to select a buffer then applies a function to the buffer
----@param func fun(id: number)
-local function select_element_apply(func)
-  state.is_picking = true
-  ui.refresh()
-
-  local char = vim.fn.getchar()
-  local letter = vim.fn.nr2char(char)
-  for _, item in ipairs(state.components) do
-    local element = item:as_element()
-    if element and letter == element.letter then
-      func(element.id)
-    end
-  end
-
-  state.is_picking = false
-  ui.refresh()
-end
-
 function M.pick()
-  select_element_apply(open_element)
+  pick.choose_then(open_element)
 end
 
 function M.close_with_pick()
-  select_element_apply(function(id)
+  pick.choose_then(function(id)
     M.handle_close(id)
   end)
 end
@@ -157,7 +140,7 @@ end
 --- unless absolute is specified in which case this will open it based on it place in the full list
 --- this is significantly less helpful if you have a lot of elements open
 ---@param num number | string
----@param absolute boolean whether or not to use the elements absolute position or visible positions
+---@param absolute boolean? whether or not to use the elements absolute position or visible positions
 function M.go_to(num, absolute)
   num = type(num) == "string" and tonumber(num) or num
   local list = absolute and state.components or state.visible_components
@@ -168,8 +151,8 @@ function M.go_to(num, absolute)
 end
 
 ---@param current_state BufferlineState
----@param opts table
----@return number
+---@param opts table?
+---@return number?
 ---@return Buffer
 function M.get_current_element_index(current_state, opts)
   opts = opts or { include_hidden = false }

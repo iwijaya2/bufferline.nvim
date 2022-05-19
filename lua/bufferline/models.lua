@@ -36,7 +36,7 @@ i.e.
 ---@field component function
 ---@field hidden boolean
 ---@field focusable boolean
----@field type "'group_end'" | "'group_start'" | "'buffer'" | "'tabpage'"
+---@field type 'group_end' | 'group_start' | 'buffer' | 'tabpage'
 local Component = {}
 
 ---@param field string
@@ -151,7 +151,6 @@ end
 ---@field public name_formatter function? dictates how the name should be shown
 ---@field public id integer the buffer number
 ---@field public name string the visible name for the file
----@deprecated public filename string the visible name for the file
 ---@field public icon string the icon
 ---@field public icon_highlight string
 ---@field public diagnostics table
@@ -166,6 +165,10 @@ end
 ---@field public group Group
 ---@field public group_fn string
 ---@field public length number the length of the buffer component
+---@field public visibility fun(): boolean
+---@field public current fun(): boolean
+---@field public visible fun(): boolean
+---@deprecated public filename string the visible name for the file
 local Buffer = Component:new({ type = "buffer" })
 
 ---create a new buffer class
@@ -269,7 +272,7 @@ end
 local Section = {}
 
 ---Create a segment of tab views
----@param n Section
+---@param n Section?
 ---@return Section
 function Section:new(n)
   local t = n or { length = 0, items = {} }

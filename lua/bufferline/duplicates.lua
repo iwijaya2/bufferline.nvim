@@ -3,6 +3,8 @@ local M = {}
 local lazy = require("bufferline.lazy")
 -- @module "bufferline.config"
 local config = lazy.require("bufferline.config")
+-- @module "bufferline.utils"
+local utils = require("bufferline.utils")
 
 local strwidth = vim.fn.strwidth
 
@@ -62,12 +64,11 @@ local function truncate(dir, depth, max_size)
   if #dir <= max_size then
     return dir
   end
-  local marker = "…"
   -- we truncate any section of the ancestor which is too long
   -- by dividing the allotted space for each section by the depth i.e.
   -- the amount of ancestors which will be prefixed
   local allowed_size = math.ceil(max_size / depth)
-  return dir:sub(0, allowed_size - strwidth(marker)) .. marker
+  return utils.truncate_name(dir, allowed_size + 1)
 end
 
 --- @param context RenderContext

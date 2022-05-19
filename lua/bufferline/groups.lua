@@ -5,6 +5,10 @@ local utils = lazy.require("bufferline.utils")
 local padding = lazy.require("bufferline.constants").padding
 --- @module "bufferline.models"
 local models = lazy.require("bufferline.models")
+--- @module "bufferline.ui"
+local ui = lazy.require("bufferline.ui")
+
+local fn = vim.fn
 
 ----------------------------------------------------------------------------------------------------
 -- Types
@@ -23,7 +27,7 @@ local models = lazy.require("bufferline.models")
 --- @field sep_start Separator
 --- @field sep_end Separator
 
----@alias GroupSeparator fun(name: string, group:Group, hls: BufferlineHLGroup, count_item: string): Separators
+---@alias GroupSeparator fun(name: string, group:Group, hls: BufferlineHLGroup, count_item: string?): Separators
 ---@alias GroupSeparators table<string, GroupSeparator>
 ---@alias grouper fun(b: Buffer): boolean
 
@@ -37,6 +41,7 @@ local models = lazy.require("bufferline.models")
 ---@field public highlight table<string, string>
 ---@field public icon string
 ---@field public hidden boolean
+---@field public with fun(Group, Group)
 ---@field auto_close boolean when leaving the group automatically close it
 
 ----------------------------------------------------------------------------------------------------
@@ -47,6 +52,7 @@ local PINNED_ID = "pinned"
 local PINNED_NAME = "pinned"
 local UNGROUPED_NAME = "ungrouped"
 local UNGROUPED_ID = "ungrouped"
+local PINNED_KEY = "BufferlinePinnedBuffers"
 
 local api = vim.api
 local fmt = string.format
@@ -100,16 +106,26 @@ function separator.pill(group, hls, count)
   return { sep_start = { component = indicator, length = length }, sep_end = space_end(hls) }
 end
 
----@param name string,
+---@param group Group,
 ---@param hls  table<string, table<string, string>>
 ---@param count string
 ---@return string, number
 ---@type GroupSeparator
-function separator.tab(name, hls, count)
+function separator.tab(group, hls, count)
   local hl = hls.fill.hl
   local indicator_hl = hls.buffer.hl
-  local length = utils.measure(name, string.rep(padding, 4), count)
-  local indicator = utils.join(hl, padding, indicator_hl, padding, name, count, hl, padding)
+  local length = utils.measure(group.name, string.rep(padding, 4), count)
+  local indicator = utils.join(
+    hl,
+    padding,
+    indicator_hl,
+    padding,
+    group.name,
+    count,
+    padding,
+    hl,
+    padding
+  )
   return { sep_start = { component = indicator, length = length }, sep_end = space_end(hls) }
 end
 
@@ -184,6 +200,21 @@ local state = {
   components_by_group = {},
 }
 
+--- Store a list of pinned buffer as a string of ids e.g. "12,10,5"
+--- in a vim.g global variable that can be persisted across vim sessions
+local function persist_pinned_buffers()
+  local pinned = {}
+  for buf, group in pairs(state.manual_groupings) do
+    if group == PINNED_ID then
+      table.insert(pinned, api.nvim_buf_get_name(buf))
+    end
+  end
+  if #pinned == 0 then
+    return
+  end
+  vim.g[PINNED_KEY] = table.concat(pinned, ",")
+end
+
 ---@param buffer Buffer
 ---@return number
 local function get_manual_group(buffer)
@@ -192,10 +223,13 @@ end
 
 --- Wrapper to abstract interacting directly with manual groups as the access mechanism
 -- can vary i.e. buffer id or path and this should be changed in a centralised way.
----@param buffer Buffer
+---@param id string
 ---@param group_id number?
-local function set_manual_group(buffer, group_id)
-  state.manual_groupings[buffer.id] = group_id
+local function set_manual_group(id, group_id)
+  state.manual_groupings[id] = group_id
+  if group_id == PINNED_ID then
+    persist_pinned_buffers()
+  end
 end
 
 ---Group buffers based on user criteria
@@ -279,6 +313,23 @@ function M.reset_highlights(highlights)
   end
 end
 
+--- Pull pinned buffers saved in a vim.g global variable and restore them
+--- to the manual_groupings table.
+local function restore_pinned_buffers()
+  local pinned = vim.g[PINNED_KEY]
+  if not pinned then
+    return
+  end
+  local manual_groupings = vim.split(pinned, ",") or {}
+  for _, path in ipairs(manual_groupings) do
+    local buf_id = fn.bufnr(path)
+    if buf_id ~= -1 then
+      set_manual_group(buf_id, PINNED_ID)
+    end
+  end
+  ui.refresh()
+end
+
 --- NOTE: this function mutates the user's configuration.
 --- Add group highlights to the user highlights table
 ---@param config BufferlineConfig
@@ -313,6 +364,9 @@ function M.setup(config)
   for _, group in pairs(state.user_groups) do
     set_group_highlights(group, config.highlights)
   end
+
+  -- Restore pinned buffer from the previous session
+  api.nvim_create_autocmd("SessionLoadPost", { once = true, callback = restore_pinned_buffers })
 end
 
 --- Add the current highlight for a specific buffer
@@ -366,13 +420,14 @@ local group_by_priority = group_by("priority")
 function M.is_pinned(buffer)
   return get_manual_group(buffer) == PINNED_ID
 end
+
 --- Add a buffer to a group manually
 ---@param group_name string
 ---@param buffer Buffer
 function M.add_to_group(group_name, buffer)
   local group = group_by_name(group_name)
   if group then
-    set_manual_group(buffer, group.id)
+    set_manual_group(buffer.id, group.id)
   end
 end
 
@@ -382,7 +437,7 @@ function M.remove_from_group(group_name, buffer)
   local group = group_by_name(group_name)
   if group then
     local id = get_manual_group(buffer)
-    set_manual_group(buffer, id ~= group.id and id or nil)
+    set_manual_group(buffer.id, id ~= group.id and id or nil)
   end
 end
 
@@ -397,7 +452,7 @@ function M.set_hidden(id, value)
 end
 
 ---@param priority number
----@param name string
+---@param name string?
 function M.toggle_hidden(priority, name)
   local group = priority and group_by_priority(priority) or group_by_name(name)
   if group then
@@ -406,7 +461,7 @@ function M.toggle_hidden(priority, name)
 end
 
 ---Get the names for all bufferline groups
----@param include_empty boolean
+---@param include_empty boolean?
 ---@return string[]
 function M.names(include_empty)
   if not state.user_groups then

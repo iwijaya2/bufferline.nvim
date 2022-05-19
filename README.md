@@ -112,19 +112,20 @@ This order can be persisted between sessions (enabled by default).
 
 ## Requirements
 
-- Neovim 0.5+
+- Neovim 0.7+
 - A patched font (see [nerd fonts](https://github.com/ryanoasis/nerd-fonts))
 - A colorscheme (either your custom highlight or a maintained one somewhere)
 
 ## Installation
 
 It is advised that you specify either the latest tag or a specific tag and bump them manually if you'd prefer to inspect changes before updating.
+If you'd like to use an older version of the plugin compatible with nvim-0.6.1 and below please change your tag to `tag = "v1.*"`
 
 **Lua**
 
 ```lua
 -- using packer.nvim
-use {'akinsho/bufferline.nvim', tag = "*", requires = 'kyazdani42/nvim-web-devicons'}
+use {'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons'}
 ```
 
 **Vimscript**
@@ -132,7 +133,7 @@ use {'akinsho/bufferline.nvim', tag = "*", requires = 'kyazdani42/nvim-web-devic
 ```vim
 Plug 'kyazdani42/nvim-web-devicons' " Recommended (for coloured icons)
 " Plug 'ryanoasis/vim-devicons' Icons without colours
-Plug 'akinsho/bufferline.nvim', { 'tag': '*' }
+Plug 'akinsho/bufferline.nvim', { 'tag': 'v2.*' }
 ```
 
 ## What about Tabs?
@@ -742,6 +743,10 @@ not block rendering the tabline.
 
   If you are using `airline` make sure you set `let g:airline#extensions#tabline#enabled = 0`.
   If you are using `lightline` this also takes over the tabline by default and needs to be deactivated.
+
+  If you are on Windows and use the GUI version of nvim (nvim-qt.exe) then also ensure, that `GuiTabline`
+  is disabled. For this create a file called `ginit.vim` in your nvim config directory and put the line
+  `GuiTabline 0` in it. Otherwise the QT tabline will overlay any terminal tablines.
 
 - **Doesn't this plugin go against the "vim way"?**
 

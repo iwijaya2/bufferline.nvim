@@ -87,12 +87,12 @@ function M.join(...)
 end
 
 ---@generic T
----@param callback fun(item: T): T
+---@param callback fun(item: T, index: number): T
 ---@param list T[]
 ---@return T[]
 function M.map(callback, list)
-  return M.fold({}, function(accum, item)
-    table.insert(accum, callback(item))
+  return M.fold({}, function(accum, item, index)
+    table.insert(accum, callback(item, index))
     return accum
   end, list)
 end
@@ -121,6 +121,7 @@ function M.compose(...)
     end
     return recurse(i + 1, funcs[i](...))
   end
+
   return function(...)
     return recurse(1, ...)
   end
@@ -153,7 +154,7 @@ end
 ---@generic T
 ---@param list T[]
 ---@param callback fun(item: `T`)
----@param matcher fun(item: `T`):boolean
+---@param matcher (fun(item: `T`):boolean)?
 function M.for_each(list, callback, matcher)
   for _, item in ipairs(list) do
     if not matcher or matcher(item) then
@@ -193,19 +194,6 @@ end
 
 M.path_sep = vim.loop.os_uname().sysname == "Windows" and "\\" or "/"
 
--- Source: https://teukka.tech/luanvim.html
-function M.augroup(definitions)
-  for group_name, definition in pairs(definitions) do
-    vim.cmd("augroup " .. group_name)
-    vim.cmd("autocmd!")
-    for _, def in pairs(definition) do
-      local command = table.concat(vim.tbl_flatten({ "autocmd", def }), " ")
-      vim.cmd(command)
-    end
-    vim.cmd("augroup END")
-  end
-end
-
 -- The provided api nvim_is_buf_loaded filters out all hidden buffers
 function M.is_valid(buf_num)
   if not buf_num or buf_num < 1 then
@@ -237,7 +225,7 @@ M.D = vim.log.levels.DEBUG
 
 --- Wrapper around `vim.notify` that adds message metadata
 ---@param msg string
----@param level number
+---@param level number?
 function M.notify(msg, level, opts)
   opts = opts or {}
   local nopts = { title = "Bufferline" }
@@ -290,6 +278,16 @@ function M.make_clickable(func_name, id, component)
   -- v:lua does not support function references in vimscript so
   -- the only way to implement this is using autoload vimscript functions
   return "%" .. id .. "@nvim_bufferline#" .. func_name .. "@" .. component
+end
+
+local current_stable = {
+  major = 0,
+  minor = 7,
+  patch = 0,
+}
+
+function M.is_current_stable_release()
+  return vim.version().minor >= current_stable.minor
 end
 
 -- truncate a string based on number of display columns/cells it occupies
