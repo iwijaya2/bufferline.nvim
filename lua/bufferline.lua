@@ -27,6 +27,8 @@ local api = vim.api
 local positions_key = constants.positions_key
 local BUFFERLINE_GROUP = "BufferlineCmds"
 
+local fmt = string.format
+
 local M = {
   move = commands.move,
   exec = commands.exec,
