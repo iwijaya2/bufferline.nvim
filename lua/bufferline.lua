@@ -51,15 +51,11 @@ local M = {
 -----------------------------------------------------------------------------//
 local function restore_positions()
   local str = vim.g[positions_key]
-  if not str then
-    return str
-  end
+  if not str then return str end
+  -- these are converted to strings when stored
+  -- so have to be converted back before usage
   local ids = vim.split(str, ",")
-  if ids and #ids > 0 then
-    -- these are converted to strings when stored
-    -- so have to be converted back before usage
-    state.custom_sort = vim.tbl_map(tonumber, ids)
-  end
+  if ids and #ids > 0 then state.custom_sort = vim.tbl_map(tonumber, ids) end
 end
 
 ---------------------------------------------------------------------------//
